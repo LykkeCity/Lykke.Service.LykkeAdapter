@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp2.0</TargetFramework>
+    <AssemblyName>Lykke.Service.LykkeAdapter.Services</AssemblyName>
+    <RootNamespace>Lykke.Service.LykkeAdapter.Services</RootNamespace>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Lykke.Common" Version="6.1.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Lykke.Service.LykkeAdapter.Core\Lykke.Service.LykkeAdapter.Core.csproj" />
+  </ItemGroup>
+
+</Project>
