@@ -1,6 +1,4 @@
-﻿using System;
-using System.Threading.Tasks;
-using Autofac;
+﻿using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using AzureStorage.Tables;
 using Common.Log;
@@ -8,7 +6,7 @@ using Lykke.Common.ApiLibrary.Middleware;
 using Lykke.Common.ApiLibrary.Swagger;
 using Lykke.Logs;
 using Lykke.Service.LykkeAdapter.Core.Services;
-using Lykke.Service.LykkeAdapter.Settings;
+using Lykke.Service.LykkeAdapter.Core.Settings;
 using Lykke.Service.LykkeAdapter.Modules;
 using Lykke.SettingsReader;
 using Lykke.SlackNotification.AzureQueue;
@@ -16,6 +14,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using System;
+using System.Threading.Tasks;
 
 namespace Lykke.Service.LykkeAdapter
 {

@@ -1,9 +1,15 @@
 ﻿using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Common.Log;
+using Lykke.Service.LykkeAdapter.Core.Domain.OrderBooks;
+using Lykke.Service.LykkeAdapter.Core.Domain.Trading;
+using Lykke.Service.LykkeAdapter.Core.Handlers;
 using Lykke.Service.LykkeAdapter.Core.Services;
-using Lykke.Service.LykkeAdapter.Settings.ServiceSettings;
+using Lykke.Service.LykkeAdapter.Core.Settings;
+using Lykke.Service.LykkeAdapter.Core.Settings.ServiceSettings;
+using Lykke.Service.LykkeAdapter.Core.Throttling;
 using Lykke.Service.LykkeAdapter.Services;
+using Lykke.Service.LykkeAdapter.Services.Exchange;
 using Lykke.SettingsReader;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -46,9 +52,42 @@ namespace Lykke.Service.LykkeAdapter.Modules
             builder.RegisterType<ShutdownManager>()
                 .As<IShutdownManager>();
 
-            // TODO: Add your dependencies here
+            builder.RegisterGeneric(typeof(RabbitMqHandler<>));
+
+            builder.RegisterInstance(_settings.CurrentValue);
+
+            builder.RegisterType<LykkeExchange>().As<ExchangeBase>().SingleInstance();
+
+            RegisterRabbitMqHandler<TickPrice>(builder, _settings.CurrentValue.RabbitMq.TickPrices, "tickHandler");
+            RegisterRabbitMqHandler<TradingOrderBook>(builder, _settings.CurrentValue.RabbitMq.OrderBooks, "orderBookHandler");
+
+            builder.RegisterType<TickPriceHandlerDecorator>()
+                .WithParameter((info, context) => info.Name == "rabbitMqHandler",
+                    (info, context) => context.ResolveNamed<IHandler<TickPrice>>("tickHandler"))
+                .SingleInstance()
+                .As<IHandler<TickPrice>>();
+
+            builder.RegisterType<OrderBookHandlerDecorator>()
+                .WithParameter((info, context) => info.Name == "rabbitMqHandler",
+                    (info, context) => context.ResolveNamed<IHandler<TradingOrderBook>>("orderBookHandler"))
+                .SingleInstance()
+                .As<IHandler<LykkeOrderBook>>();
+
+            builder.RegisterType<EventsPerSecondPerInstrumentThrottlingManager>()
+                .WithParameter("maxEventPerSecondByInstrument", _settings.CurrentValue.MaxEventPerSecondByInstrument)
+                .As<IThrottling>().InstancePerDependency();
 
             builder.Populate(_services);
+        }
+
+        private static void RegisterRabbitMqHandler<T>(ContainerBuilder container, RabbitMqPublishToExchangeConfiguration exchangeConfiguration, string regKey = "")
+        {
+            container.RegisterType<RabbitMqHandler<T>>()
+                .WithParameter("connectionString", exchangeConfiguration.ConnectionString)
+                .WithParameter("exchangeName", exchangeConfiguration.PublishToExchange)
+                .WithParameter("enabled", exchangeConfiguration.Enabled)
+                .Named<IHandler<T>>(regKey)
+                .As<IHandler<T>>();
         }
     }
 }
