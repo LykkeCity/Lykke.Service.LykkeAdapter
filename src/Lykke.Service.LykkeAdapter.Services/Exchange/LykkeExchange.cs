@@ -4,6 +4,7 @@ using Lykke.RabbitMqBroker.Subscriber;
 using Lykke.Service.LykkeAdapter.Core;
 using Lykke.Service.LykkeAdapter.Core.Domain.OrderBooks;
 using Lykke.Service.LykkeAdapter.Core.Domain.Trading;
+using Lykke.Service.LykkeAdapter.Core.Filters;
 using Lykke.Service.LykkeAdapter.Core.Handlers;
 using Lykke.Service.LykkeAdapter.Core.Settings;
 using Lykke.Service.LykkeAdapter.Core.Throttling;
@@ -25,6 +26,7 @@ namespace Lykke.Service.LykkeAdapter.Services.Exchange
         private new LykkeAdapterSettings Config => (LykkeAdapterSettings)base.Config;
         private CancellationTokenSource ctSource;
         private RabbitMqSubscriber<LykkeOrderBook> sourceFeedOrderbooksRabbit;
+        private readonly RepeatingOrdersFilter ordersFilter;
 
         private readonly Dictionary<string, decimal> _lastBids;
         private readonly Dictionary<string, decimal> _lastAsks;
@@ -45,6 +47,8 @@ namespace Lykke.Service.LykkeAdapter.Services.Exchange
 
             _lastBids = Instruments.ToDictionary(x => x.Name, x => 0m);
             _lastAsks = Instruments.ToDictionary(x => x.Name, x => 0m);
+
+            ordersFilter = new RepeatingOrdersFilter();
         }
 
         protected override void StartImpl()
@@ -92,6 +96,8 @@ namespace Lykke.Service.LykkeAdapter.Services.Exchange
                 {
                     decimal bestBid = 0;
                     decimal bestAsk = 0;
+
+                    ordersFilter.FilterOutDuplicatedOrders(lykkeOrderBook);
 
                     if (lykkeOrderBook.IsBuy)
                     {
