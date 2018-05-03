@@ -1,5 +1,4 @@
 ﻿using Lykke.Service.LykkeAdapter.Core.Domain.OrderBooks;
-using MoreLinq;
 using System.Linq;
 
 namespace Lykke.Service.LykkeAdapter.Core.Filters
@@ -8,11 +7,8 @@ namespace Lykke.Service.LykkeAdapter.Core.Filters
     {
         public void FilterOutDuplicatedOrders(LykkeOrderBook orderbook)
         {
-            orderbook.Prices = orderbook.Prices.DistinctBy(x => new
-            {
-                x.Price,
-                x.Volume
-            }).ToList();
+            orderbook.Prices = orderbook.Prices.GroupBy(d => d.Price)
+                                                .Select(g => new PriceVolume(g.Key, g.Sum(s => s.Volume))).ToList();
         }
     }
 }
