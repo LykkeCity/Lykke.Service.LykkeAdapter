@@ -110,17 +110,18 @@ namespace Lykke.Service.LykkeAdapter.Services.Exchange
                         bestBid = _lastBids.ContainsKey(instrument.Name) ? _lastBids[instrument.Name] : 0;
                     }
 
-                    if (bestBid > 0 && bestAsk > 0)
+                    if (bestBid > 0 && bestAsk > 0 && bestAsk > bestBid)
                     {
                         if (!_tickPricesThrottler.NeedThrottle(instrument.Name))
                         {
                             var tickPrice = new TickPrice(instrument, lykkeOrderBook.Timestamp, bestAsk, bestBid);
                             await _tickPriceHandler.Handle(tickPrice);
                         }
-                        if (!_orderBooksThrottler.NeedThrottle(instrument.Name))
-                        {
-                            await _orderBookHandler.Handle(lykkeOrderBook);
-                        }
+                    }
+
+                    if (!_orderBooksThrottler.NeedThrottle(instrument.Name))
+                    {
+                        await _orderBookHandler.Handle(lykkeOrderBook);
                     }
                 }
             }
