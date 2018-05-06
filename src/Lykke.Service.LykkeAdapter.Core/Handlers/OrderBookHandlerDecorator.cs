@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Common.Log;
 using Lykke.Job.OrderBooksCacheProvider.Client;
 
 namespace Lykke.Service.LykkeAdapter.Core.Handlers
@@ -12,12 +13,14 @@ namespace Lykke.Service.LykkeAdapter.Core.Handlers
         private const string Name = "lykke";
         private readonly IHandler<TradingOrderBook> _rabbitMqHandler;
         private readonly IOrderBookProviderClient _bookProviderClient;
+        private readonly ILog _log;
         private readonly Dictionary<string, LykkeOrderBook> _halfOrderBooks = new Dictionary<string, LykkeOrderBook>();
 
-        public OrderBookHandlerDecorator(IHandler<TradingOrderBook> rabbitMqHandler, IOrderBookProviderClient bookProviderClient)
+        public OrderBookHandlerDecorator(IHandler<TradingOrderBook> rabbitMqHandler, IOrderBookProviderClient bookProviderClient, ILog log)
         {
             _rabbitMqHandler = rabbitMqHandler;
             _bookProviderClient = bookProviderClient;
+            _log = log;
         }
 
         public async Task Handle(LykkeOrderBook message)
@@ -53,26 +56,51 @@ namespace Lykke.Service.LykkeAdapter.Core.Handlers
 
         private async Task CheckInited(LykkeOrderBook message, string currentKey, string wantedKey)
         {
-            if (!_halfOrderBooks.ContainsKey(currentKey) && !_halfOrderBooks.ContainsKey(wantedKey))
+            try
             {
-                var data = await _bookProviderClient.GetOrderBookRawAsync(message.AssetPair);
-                var buy = data?.FirstOrDefault(e => e.IsBuy);
-                var sell = data?.FirstOrDefault(e => !e.IsBuy);
+                if (!_halfOrderBooks.ContainsKey(currentKey) && !_halfOrderBooks.ContainsKey(wantedKey))
+                {
+                    var data = await _bookProviderClient.GetOrderBookRawAsync(message.AssetPair);
+                    var buy = data?.FirstOrDefault(e => e.IsBuy);
+                    var sell = data?.FirstOrDefault(e => !e.IsBuy);
+                    _halfOrderBooks[message.AssetPair + true] = new LykkeOrderBook()
+                    {
+                        AssetPair = message.AssetPair,
+                        IsBuy = true,
+                        Timestamp = buy?.Timestamp ?? DateTime.MinValue,
+                        Prices = buy?.Prices.Select(e => new PriceVolume((decimal) e.Price, (decimal) e.Volume))
+                                     .ToList() ??
+                                 new List<PriceVolume>()
+                    };
+                    _halfOrderBooks[message.AssetPair + false] = new LykkeOrderBook()
+                    {
+                        AssetPair = message.AssetPair,
+                        IsBuy = false,
+                        Timestamp = sell?.Timestamp ?? DateTime.MinValue,
+                        Prices = sell?.Prices.Select(e => new PriceVolume((decimal) e.Price, (decimal) e.Volume))
+                                     .ToList() ??
+                                 new List<PriceVolume>()
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                await _log.WriteInfoAsync(nameof(OrderBookHandlerDecorator), nameof(CheckInited), message.AssetPair, ex.ToString());
+
                 _halfOrderBooks[message.AssetPair + true] = new LykkeOrderBook()
                 {
                     AssetPair = message.AssetPair,
-                    IsBuy = true,
-                    Timestamp = buy?.Timestamp ?? DateTime.MinValue,
-                    Prices = buy?.Prices.Select(e => new PriceVolume((decimal) e.Price, (decimal) e.Volume)).ToList() ??
-                                new List<PriceVolume>()
+                    IsBuy = !message.IsBuy,
+                    Timestamp = DateTime.MinValue,
+                    Prices = new List<PriceVolume>()
                 };
+
                 _halfOrderBooks[message.AssetPair + false] = new LykkeOrderBook()
                 {
                     AssetPair = message.AssetPair,
-                    IsBuy = false,
-                    Timestamp = sell?.Timestamp ?? DateTime.MinValue,
-                    Prices = sell?.Prices.Select(e => new PriceVolume((decimal) e.Price, (decimal) e.Volume)).ToList() ??
-                                new List<PriceVolume>()
+                    IsBuy = !message.IsBuy,
+                    Timestamp = DateTime.MinValue,
+                    Prices = new List<PriceVolume>()
                 };
             }
         }
