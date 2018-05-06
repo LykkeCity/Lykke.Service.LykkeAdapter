@@ -54,7 +54,7 @@ namespace Lykke.Service.LykkeAdapter.Services.Exchange
             var settings = new RabbitMqSubscriptionSettings
             {
                 ConnectionString = Config.RabbitMq.SourceFeed.ConnectionString,
-                QueueName = Config.RabbitMq.SourceFeed.Queue + ".xxxyyy",
+                QueueName = Config.RabbitMq.SourceFeed.Queue,
                 ExchangeName = Config.RabbitMq.SourceFeed.Exchange
             };
 
@@ -93,12 +93,7 @@ namespace Lykke.Service.LykkeAdapter.Services.Exchange
             {
                 instrument = new Instrument(lykkeOrderBook.AssetPair);
             }
-
-            if (lykkeOrderBook.AssetPair == "TIMECHF")
-            {
-                Console.WriteLine($"{lykkeOrderBook.AssetPair} {lykkeOrderBook.IsBuy} {lykkeOrderBook.Prices.Count}");
-            }
-
+            
             if (instrument != null)
             {
                 decimal bestBid = 0;

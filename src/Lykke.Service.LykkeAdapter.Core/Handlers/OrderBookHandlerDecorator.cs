@@ -41,7 +41,7 @@ namespace Lykke.Service.LykkeAdapter.Core.Handlers
             var isOutdated = fullOrderBook.Asks.Any() && fullOrderBook.Bids.Any() &&
                                 fullOrderBook.Asks.Min(x => x.Price) < fullOrderBook.Bids.Max(x => x.Price);
 
-            if (!isOutdated)
+            if (isOutdated)
             {
                 if (message.IsBuy)
                 {
