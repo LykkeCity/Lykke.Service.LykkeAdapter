@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Lykke.Job.OrderBooksCacheProvider.Client;
 
 namespace Lykke.Service.LykkeAdapter.Core.Handlers
 {
@@ -10,21 +11,23 @@ namespace Lykke.Service.LykkeAdapter.Core.Handlers
     {
         private const string Name = "lykke";
         private readonly IHandler<TradingOrderBook> _rabbitMqHandler;
+        private readonly IOrderBookProviderClient _bookProviderClient;
         private readonly Dictionary<string, LykkeOrderBook> _halfOrderBooks = new Dictionary<string, LykkeOrderBook>();
 
-        public OrderBookHandlerDecorator(IHandler<TradingOrderBook> rabbitMqHandler)
+        public OrderBookHandlerDecorator(IHandler<TradingOrderBook> rabbitMqHandler, IOrderBookProviderClient bookProviderClient)
         {
             _rabbitMqHandler = rabbitMqHandler;
+            _bookProviderClient = bookProviderClient;
         }
 
         public async Task Handle(LykkeOrderBook message)
         {
-            // Update current half of the order book
             var currentKey = message.AssetPair + message.IsBuy;
-            _halfOrderBooks[currentKey] = message;
-
-            // Find a pair half and send it
             var wantedKey = message.AssetPair + !message.IsBuy;
+
+            await CheckInited(message, currentKey, wantedKey);
+
+            _halfOrderBooks[currentKey] = message;
             if (!_halfOrderBooks.TryGetValue(wantedKey, out var otherHalf))
             {
                 otherHalf = new LykkeOrderBook()
@@ -35,6 +38,7 @@ namespace Lykke.Service.LykkeAdapter.Core.Handlers
                     Prices = new List<PriceVolume>()
                 };
             }
+
             var fullOrderBook = CreateOrderBook(message, otherHalf);
 
             // If bestAsk < bestBid then ignore the order book as outdated
@@ -44,6 +48,32 @@ namespace Lykke.Service.LykkeAdapter.Core.Handlers
             if (!isOutdated)
             {
                 await _rabbitMqHandler.Handle(fullOrderBook);
+            }
+        }
+
+        private async Task CheckInited(LykkeOrderBook message, string currentKey, string wantedKey)
+        {
+            if (!_halfOrderBooks.ContainsKey(currentKey) && !_halfOrderBooks.ContainsKey(wantedKey))
+            {
+                var data = await _bookProviderClient.GetOrderBookRawAsync(message.AssetPair);
+                var buy = data?.FirstOrDefault(e => e.IsBuy);
+                var sell = data?.FirstOrDefault(e => !e.IsBuy);
+                _halfOrderBooks[message.AssetPair + true] = new LykkeOrderBook()
+                {
+                    AssetPair = message.AssetPair,
+                    IsBuy = true,
+                    Timestamp = buy?.Timestamp ?? DateTime.MinValue,
+                    Prices = buy?.Prices.Select(e => new PriceVolume((decimal) e.Price, (decimal) e.Volume)).ToList() ??
+                                new List<PriceVolume>()
+                };
+                _halfOrderBooks[message.AssetPair + false] = new LykkeOrderBook()
+                {
+                    AssetPair = message.AssetPair,
+                    IsBuy = false,
+                    Timestamp = sell?.Timestamp ?? DateTime.MinValue,
+                    Prices = sell?.Prices.Select(e => new PriceVolume((decimal) e.Price, (decimal) e.Volume)).ToList() ??
+                                new List<PriceVolume>()
+                };
             }
         }
 

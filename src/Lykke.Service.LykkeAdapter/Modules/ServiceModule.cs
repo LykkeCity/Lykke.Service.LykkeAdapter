@@ -1,6 +1,7 @@
 ﻿using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Common.Log;
+using Lykke.Job.OrderBooksCacheProvider.Client;
 using Lykke.Service.LykkeAdapter.Core.Domain.OrderBooks;
 using Lykke.Service.LykkeAdapter.Core.Domain.Trading;
 using Lykke.Service.LykkeAdapter.Core.Handlers;
@@ -18,13 +19,19 @@ namespace Lykke.Service.LykkeAdapter.Modules
     public class ServiceModule : Module
     {
         private readonly IReloadingManager<LykkeAdapterSettings> _settings;
+        private readonly IReloadingManager<OrderBooksCacheProviderClientSettings> _orderBooksCacheProviderClientSettings;
+
         private readonly ILog _log;
         // NOTE: you can remove it if you don't need to use IServiceCollection extensions to register service specific dependencies
         private readonly IServiceCollection _services;
 
-        public ServiceModule(IReloadingManager<LykkeAdapterSettings> settings, ILog log)
+        public ServiceModule(
+            IReloadingManager<LykkeAdapterSettings> settings, 
+            IReloadingManager<OrderBooksCacheProviderClientSettings> orderBooksCacheProviderClientSettings, 
+            ILog log)
         {
             _settings = settings;
+            _orderBooksCacheProviderClientSettings = orderBooksCacheProviderClientSettings;
             _log = log;
 
             _services = new ServiceCollection();
@@ -76,6 +83,10 @@ namespace Lykke.Service.LykkeAdapter.Modules
             builder.RegisterType<EventsPerSecondPerInstrumentThrottlingManager>()
                 .WithParameter("maxEventPerSecondByInstrument", _settings.CurrentValue.MaxEventPerSecondByInstrument)
                 .As<IThrottling>().InstancePerDependency();
+
+            builder.RegisterInstance(new OrderBookProviderClient(_orderBooksCacheProviderClientSettings.CurrentValue.ServiceUrl))
+                .As<IOrderBookProviderClient>()
+                .SingleInstance();
 
             builder.Populate(_services);
         }
