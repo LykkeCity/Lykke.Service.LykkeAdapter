@@ -25,19 +25,36 @@ namespace Lykke.Service.LykkeAdapter.Core.Handlers
 
             // Find a pair half and send it
             var wantedKey = message.AssetPair + !message.IsBuy;
-            if (_halfOrderBooks.TryGetValue(wantedKey, out var otherHalf))
+            if (!_halfOrderBooks.TryGetValue(wantedKey, out var otherHalf))
             {
-                var fullOrderBook = CreateOrderBook(message, otherHalf);
-
-                // If bestAsk < bestBid then ignore the order book as outdated
-                var isOutdated = fullOrderBook.Asks.Any() && fullOrderBook.Bids.Any() &&
-                                 fullOrderBook.Asks.Min(x => x.Price) < fullOrderBook.Bids.Max(x => x.Price);
-
-                if (!isOutdated)
+                otherHalf = new LykkeOrderBook()
                 {
-                    await _rabbitMqHandler.Handle(fullOrderBook);
+                    AssetPair = message.AssetPair,
+                    IsBuy = !message.IsBuy,
+                    Timestamp = DateTime.MinValue,
+                    Prices = new List<PriceVolume>()
+                };
+            }
+            var fullOrderBook = CreateOrderBook(message, otherHalf);
+
+            // If bestAsk < bestBid then ignore the order book as outdated
+            var isOutdated = fullOrderBook.Asks.Any() && fullOrderBook.Bids.Any() &&
+                                fullOrderBook.Asks.Min(x => x.Price) < fullOrderBook.Bids.Max(x => x.Price);
+
+            if (!isOutdated)
+            {
+                if (message.IsBuy)
+                {
+                    fullOrderBook.Asks = new List<PriceVolume>();
+                }
+                else
+                {
+                    fullOrderBook.Bids = new List<PriceVolume>();
                 }
             }
+
+            await _rabbitMqHandler.Handle(fullOrderBook);
+
         }
 
         private TradingOrderBook CreateOrderBook(LykkeOrderBook one, LykkeOrderBook another)
@@ -49,14 +66,14 @@ namespace Lykke.Service.LykkeAdapter.Core.Handlers
                 throw new ArgumentException($"{nameof(one)}.{nameof(one.IsBuy)} == {nameof(another)}.{nameof(another.IsBuy)}");
 
             var assetPair = one.AssetPair;
-            var timestamp = one.Timestamp;
+            var timestamp = one.Timestamp > another.Timestamp ? one.Timestamp : another.Timestamp;
 
             var onePrices = one.Prices.Select(x => new PriceVolume(x.Price, x.Volume)).ToList();
             var anotherPrices = another.Prices.Select(x => new PriceVolume(x.Price, x.Volume)).ToList();
 
             var bids = one.IsBuy ? onePrices : anotherPrices;
             var asks = !one.IsBuy ? onePrices : anotherPrices;
-
+            
             var result = new TradingOrderBook(Name, assetPair, asks, bids, timestamp);
 
             return result;

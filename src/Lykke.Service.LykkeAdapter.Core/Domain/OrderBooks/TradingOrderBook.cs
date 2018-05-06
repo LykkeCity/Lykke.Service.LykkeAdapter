@@ -25,9 +25,9 @@ namespace Lykke.Service.LykkeAdapter.Core.Domain.OrderBooks
         public DateTime Timestamp { get; }
 
         [JsonProperty("asks")]
-        public IReadOnlyCollection<PriceVolume> Asks { get; }
+        public IReadOnlyCollection<PriceVolume> Asks { get; set; }
 
         [JsonProperty("bids")]
-        public IReadOnlyCollection<PriceVolume> Bids { get; }
+        public IReadOnlyCollection<PriceVolume> Bids { get; set; }
     }
 }

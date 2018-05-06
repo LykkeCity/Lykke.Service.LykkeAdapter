@@ -54,7 +54,7 @@ namespace Lykke.Service.LykkeAdapter.Services.Exchange
             var settings = new RabbitMqSubscriptionSettings
             {
                 ConnectionString = Config.RabbitMq.SourceFeed.ConnectionString,
-                QueueName = Config.RabbitMq.SourceFeed.Queue + ".xxx",
+                QueueName = Config.RabbitMq.SourceFeed.Queue + ".xxxyyy",
                 ExchangeName = Config.RabbitMq.SourceFeed.Exchange
             };
 
@@ -93,40 +93,42 @@ namespace Lykke.Service.LykkeAdapter.Services.Exchange
             {
                 instrument = new Instrument(lykkeOrderBook.AssetPair);
             }
-            
+
+            if (lykkeOrderBook.AssetPair == "TIMECHF")
+            {
+                Console.WriteLine($"{lykkeOrderBook.AssetPair} {lykkeOrderBook.IsBuy} {lykkeOrderBook.Prices.Count}");
+            }
+
             if (instrument != null)
             {
-                if (lykkeOrderBook.Prices.Any())
+                decimal bestBid = 0;
+                decimal bestAsk = 0;
+
+                ordersFilter.FilterOutDuplicatedOrders(lykkeOrderBook);
+
+                if (lykkeOrderBook.IsBuy)
                 {
-                    decimal bestBid = 0;
-                    decimal bestAsk = 0;
+                    _lastBids[instrument.Name] = bestBid = lykkeOrderBook.Prices.Select(x => x.Price).OrderByDescending(x => x).FirstOrDefault();
+                    bestAsk = _lastAsks.ContainsKey(instrument.Name) ? _lastAsks[instrument.Name] : 0;
+                }
+                else
+                {
+                    _lastAsks[instrument.Name] = bestAsk = lykkeOrderBook.Prices.Select(x => x.Price).OrderBy(x => x).FirstOrDefault();
+                    bestBid = _lastBids.ContainsKey(instrument.Name) ? _lastBids[instrument.Name] : 0;
+                }
 
-                    ordersFilter.FilterOutDuplicatedOrders(lykkeOrderBook);
+                if (bestBid > 0 && bestAsk > 0 && bestAsk > bestBid)
+                {
+                    if (!_tickPricesThrottler.NeedThrottle(instrument.Name))
+                    {
+                        var tickPrice = new TickPrice(instrument, lykkeOrderBook.Timestamp, bestAsk, bestBid);
+                        await _tickPriceHandler.Handle(tickPrice);
+                    }
+                }
 
-                    if (lykkeOrderBook.IsBuy)
-                    {
-                        _lastBids[instrument.Name] = bestBid = lykkeOrderBook.Prices.Select(x => x.Price).OrderByDescending(x => x).First();
-                        bestAsk = _lastAsks.ContainsKey(instrument.Name) ? _lastAsks[instrument.Name] : 0;
-                    }
-                    else
-                    {
-                        _lastAsks[instrument.Name] = bestAsk = lykkeOrderBook.Prices.Select(x => x.Price).OrderBy(x => x).First();
-                        bestBid = _lastBids.ContainsKey(instrument.Name) ? _lastBids[instrument.Name] : 0;
-                    }
-
-                    if (bestBid > 0 && bestAsk > 0 && bestAsk > bestBid)
-                    {
-                        if (!_tickPricesThrottler.NeedThrottle(instrument.Name))
-                        {
-                            var tickPrice = new TickPrice(instrument, lykkeOrderBook.Timestamp, bestAsk, bestBid);
-                            await _tickPriceHandler.Handle(tickPrice);
-                        }
-                    }
-
-                    if (!_orderBooksThrottler.NeedThrottle(instrument.Name))
-                    {
-                        await _orderBookHandler.Handle(lykkeOrderBook);
-                    }
+                if (!_orderBooksThrottler.NeedThrottle(instrument.Name))
+                {
+                    await _orderBookHandler.Handle(lykkeOrderBook);
                 }
             }
         }
