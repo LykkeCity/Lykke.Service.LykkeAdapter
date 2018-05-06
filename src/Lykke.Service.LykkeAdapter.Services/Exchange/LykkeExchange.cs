@@ -49,6 +49,23 @@ namespace Lykke.Service.LykkeAdapter.Services.Exchange
             _lastAsks = Instruments.ToDictionary(x => x.Name, x => 0m);
 
             ordersFilter = new RepeatingOrdersFilter();
+
+
+            var settings = new RabbitMqSubscriptionSettings
+            {
+                ConnectionString = Config.RabbitMq.SourceFeed.ConnectionString,
+                QueueName = Config.RabbitMq.SourceFeed.Queue + ".xxx",
+                ExchangeName = Config.RabbitMq.SourceFeed.Exchange
+            };
+
+            sourceFeedOrderbooksRabbit =
+                new RabbitMqSubscriber<LykkeOrderBook>(settings,
+                        new ResilientErrorHandlingStrategy(log, settings, TimeSpan.FromSeconds(10),
+                            next: new DefaultErrorHandlingStrategy(log, settings)))
+                    .SetMessageDeserializer(new JsonMessageDeserializer<LykkeOrderBook>())
+                    .SetMessageReadStrategy(new MessageReadWithTemporaryQueueStrategy())
+                    .Subscribe(HandleOrderBook)
+                    .SetLogger(log);
         }
 
         protected override void StartImpl()
@@ -64,20 +81,7 @@ namespace Lykke.Service.LykkeAdapter.Services.Exchange
 
         private void StartRabbitMqTickPriceSubscription()
         {
-            var rabbitSettings = new RabbitMqSubscriptionSettings()
-            {
-                ConnectionString = Config.RabbitMq.SourceFeed.ConnectionString,
-                ExchangeName = Config.RabbitMq.SourceFeed.Exchange,
-                QueueName = Config.RabbitMq.SourceFeed.Queue
-            };
-            var errorStrategy = new DefaultErrorHandlingStrategy(LykkeLog, rabbitSettings);
-            sourceFeedOrderbooksRabbit = new RabbitMqSubscriber<LykkeOrderBook>(rabbitSettings, errorStrategy)
-                .SetMessageDeserializer(new GenericRabbitModelConverter<LykkeOrderBook>())
-                .SetMessageReadStrategy(new MessageReadWithTemporaryQueueStrategy())
-                .SetConsole(new LogToConsole())
-                .SetLogger(LykkeLog)
-                .Subscribe(HandleOrderBook)
-                .Start();
+            sourceFeedOrderbooksRabbit.Start();
         }
 
 
@@ -89,7 +93,7 @@ namespace Lykke.Service.LykkeAdapter.Services.Exchange
             {
                 instrument = new Instrument(lykkeOrderBook.AssetPair);
             }
-
+            
             if (instrument != null)
             {
                 if (lykkeOrderBook.Prices.Any())
