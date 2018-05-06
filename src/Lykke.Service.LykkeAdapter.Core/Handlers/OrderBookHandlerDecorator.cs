@@ -39,22 +39,12 @@ namespace Lykke.Service.LykkeAdapter.Core.Handlers
 
             // If bestAsk < bestBid then ignore the order book as outdated
             var isOutdated = fullOrderBook.Asks.Any() && fullOrderBook.Bids.Any() &&
-                                fullOrderBook.Asks.Min(x => x.Price) < fullOrderBook.Bids.Max(x => x.Price);
+                             fullOrderBook.Asks.Min(x => x.Price) < fullOrderBook.Bids.Max(x => x.Price);
 
-            if (isOutdated)
+            if (!isOutdated)
             {
-                if (message.IsBuy)
-                {
-                    fullOrderBook.Asks = new List<PriceVolume>();
-                }
-                else
-                {
-                    fullOrderBook.Bids = new List<PriceVolume>();
-                }
+                await _rabbitMqHandler.Handle(fullOrderBook);
             }
-
-            await _rabbitMqHandler.Handle(fullOrderBook);
-
         }
 
         private TradingOrderBook CreateOrderBook(LykkeOrderBook one, LykkeOrderBook another)
