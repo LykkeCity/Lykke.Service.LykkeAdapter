@@ -1,5 +1,4 @@
-﻿using Autofac;
-using Common;
+﻿using Common;
 using Common.Log;
 using Lykke.Service.LykkeAdapter.Core;
 using Lykke.Service.LykkeAdapter.Core.Domain.Exchange;
@@ -11,7 +10,7 @@ using System.Linq;
 
 namespace Lykke.Service.LykkeAdapter.Services.Exchange
 {
-    public abstract class ExchangeBase : IStartable, IStopable
+    public abstract class ExchangeBase : IStopable
     {
         protected readonly ILog LykkeLog;
 
