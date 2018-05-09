@@ -1,6 +1,6 @@
 ﻿using Lykke.SettingsReader.Attributes;
 
-namespace Lykke.Service.LykkeAdapter.Settings.ServiceSettings
+namespace Lykke.Service.LykkeAdapter.Core.Settings.ServiceSettings
 {
     public class DbSettings
     {
