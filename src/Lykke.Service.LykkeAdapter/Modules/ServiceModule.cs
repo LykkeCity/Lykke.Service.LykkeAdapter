@@ -2,6 +2,7 @@
 using Autofac.Extensions.DependencyInjection;
 using Common;
 using Common.Log;
+using Lykke.Common.ExchangeAdapter.Contracts;
 using Lykke.Job.OrderBooksCacheProvider.Client;
 using Lykke.Service.LykkeAdapter.Core.Domain.OrderBooks;
 using Lykke.Service.LykkeAdapter.Core.Domain.Trading;
@@ -71,7 +72,7 @@ namespace Lykke.Service.LykkeAdapter.Modules
             RegisterRabbitMqHandler<TickPrice>(builder, _settings.CurrentValue.RabbitMq.TickPrices, "tickHandler");
             RegisterRabbitMqHandler<TradingOrderBook>(builder, _settings.CurrentValue.RabbitMq.OrderBooks, "orderBookHandler");
 
-            builder.RegisterType<TickPriceHandlerDecorator>()
+            builder.RegisterType<PreventDuplicatesHandler>()
                 .WithParameter((info, context) => info.Name == "rabbitMqHandler",
                     (info, context) => context.ResolveNamed<IHandler<TickPrice>>("tickHandler"))
                 .SingleInstance()

@@ -15,6 +15,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Common;
+using Lykke.Common.ExchangeAdapter.Contracts;
 
 namespace Lykke.Service.LykkeAdapter.Services.Exchange
 {
@@ -124,7 +125,14 @@ namespace Lykke.Service.LykkeAdapter.Services.Exchange
                     {
                         if (!_tickPricesThrottler.NeedThrottle(instrument.Name))
                         {
-                            var tickPrice = new TickPrice(instrument, lykkeOrderBook.Timestamp, bestAsk, bestBid);
+                            var tickPrice = new TickPrice
+                            {
+                                Source = Constants.LykkeExchangeName,
+                                Asset = instrument.Name,
+                                Timestamp = lykkeOrderBook.Timestamp,
+                                Ask = bestAsk,
+                                Bid = bestBid
+                            };
                             await _tickPriceHandler.Handle(tickPrice);
                         }
                     }
