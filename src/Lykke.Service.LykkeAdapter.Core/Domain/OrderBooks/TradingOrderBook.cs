@@ -22,7 +22,7 @@ namespace Lykke.Service.LykkeAdapter.Core.Domain.OrderBooks
         public string AssetPairId { get; }
 
         [JsonProperty("timestamp")]
-        public DateTime Timestamp { get; }
+        public DateTime Timestamp { get; set; }
 
         [JsonProperty("asks")]
         public IReadOnlyCollection<PriceVolume> Asks { get; set; }
