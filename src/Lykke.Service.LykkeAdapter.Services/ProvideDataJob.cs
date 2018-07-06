@@ -147,7 +147,7 @@ namespace Lykke.Service.LykkeAdapter.Services
                 {
                     SumSellVolume += ask.Volume;
                     SumSellOppossiteVolume += ask.Volume * ask.Price;
-                    if (ask.Price > Bid) Bid = ask.Price;
+                    if (ask.Price < Ask && Ask > 0) Ask = ask.Price;
                 }
             }
 
