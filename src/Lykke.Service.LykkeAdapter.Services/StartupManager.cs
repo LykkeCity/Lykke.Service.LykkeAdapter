@@ -1,6 +1,5 @@
 ﻿using Common.Log;
 using Lykke.Service.LykkeAdapter.Core.Services;
-using Lykke.Service.LykkeAdapter.Services.Exchange;
 using System.Threading.Tasks;
 
 namespace Lykke.Service.LykkeAdapter.Services
@@ -15,17 +14,16 @@ namespace Lykke.Service.LykkeAdapter.Services
     public class StartupManager : IStartupManager
     {
         private readonly ILog _log;
-        private readonly ExchangeBase _exchange;
-
-        public StartupManager(ILog log, ExchangeBase exchange)
+        
+        public StartupManager(ILog log)
         {
             _log = log;
-            _exchange = exchange;
+            
         }
 
         public async Task StartAsync()
         {
-            _exchange.Start();
+            
 
             await Task.CompletedTask;
         }

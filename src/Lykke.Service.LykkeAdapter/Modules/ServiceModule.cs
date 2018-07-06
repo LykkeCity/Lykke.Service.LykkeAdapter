@@ -1,17 +1,12 @@
 ﻿using Autofac;
 using Autofac.Extensions.DependencyInjection;
-using Common;
 using Common.Log;
-using Lykke.Job.OrderBooksCacheProvider.Client;
-using Lykke.Service.LykkeAdapter.Core.Domain.OrderBooks;
-using Lykke.Service.LykkeAdapter.Core.Domain.Trading;
 using Lykke.Service.LykkeAdapter.Core.Handlers;
 using Lykke.Service.LykkeAdapter.Core.Services;
 using Lykke.Service.LykkeAdapter.Core.Settings;
 using Lykke.Service.LykkeAdapter.Core.Settings.ServiceSettings;
-using Lykke.Service.LykkeAdapter.Core.Throttling;
+using Lykke.Service.LykkeAdapter.RabbitMq;
 using Lykke.Service.LykkeAdapter.Services;
-using Lykke.Service.LykkeAdapter.Services.Exchange;
 using Lykke.SettingsReader;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -40,12 +35,6 @@ namespace Lykke.Service.LykkeAdapter.Modules
 
         protected override void Load(ContainerBuilder builder)
         {
-            // TODO: Do not register entire settings in container, pass necessary settings to services which requires them
-            // ex:
-            //  builder.RegisterType<QuotesPublisher>()
-            //      .As<IQuotesPublisher>()
-            //      .WithParameter(TypedParameter.From(_settings.CurrentValue.QuotesPublication))
-
             builder.RegisterInstance(_log)
                 .As<ILog>()
                 .SingleInstance();
@@ -64,44 +53,41 @@ namespace Lykke.Service.LykkeAdapter.Modules
 
             builder.RegisterInstance(_settings.CurrentValue);
 
-            builder.RegisterType<LykkeExchange>().As<ExchangeBase>()
-                                                 .As<IStopable>()
-                                                 .SingleInstance();
+            builder.RegisterType<MeOrderBookSubscriber>()
+                .WithParameter(
+                    new TypedParameter(
+                        typeof(RabbitMqConfiguration),
+                        _settings.CurrentValue.RabbitMq.SourceFeed))
+                .AutoActivate()
+                .SingleInstance();
 
-            RegisterRabbitMqHandler<TickPrice>(builder, _settings.CurrentValue.RabbitMq.TickPrices, "tickHandler");
-            RegisterRabbitMqHandler<TradingOrderBook>(builder, _settings.CurrentValue.RabbitMq.OrderBooks, "orderBookHandler");
+            builder.RegisterType<TickPricePublisher>()
+                .WithParameter(
+                    new TypedParameter(
+                        typeof(RabbitMqPublishToExchangeConfiguration),
+                        _settings.CurrentValue.RabbitMq.TickPrices))
+                .As<ITickPricePublisher>()
+                .AutoActivate()
+                .SingleInstance();
 
-            builder.RegisterType<TickPriceHandlerDecorator>()
-                .WithParameter((info, context) => info.Name == "rabbitMqHandler",
-                    (info, context) => context.ResolveNamed<IHandler<TickPrice>>("tickHandler"))
-                .SingleInstance()
-                .As<IHandler<TickPrice>>();
+            builder.RegisterType<OrderBookPublisher>()
+                .WithParameter(
+                    new TypedParameter(
+                        typeof(RabbitMqPublishToExchangeConfiguration),
+                        _settings.CurrentValue.RabbitMq.OrderBooks))
+                .As<IOrderBookPublisher>()
+                .AutoActivate()
+                .SingleInstance();
 
-            builder.RegisterType<OrderBookHandlerDecorator>()
-                .WithParameter((info, context) => info.Name == "rabbitMqHandler",
-                    (info, context) => context.ResolveNamed<IHandler<TradingOrderBook>>("orderBookHandler"))
-                .SingleInstance()
-                .As<IHandler<LykkeOrderBook>>();
+            builder.RegisterType<OrderBookService>()
+                .As<IOrderBookService>()
+                .SingleInstance();
 
-            builder.RegisterType<EventsPerSecondPerInstrumentThrottlingManager>()
-                .WithParameter("maxEventPerSecondByInstrument", _settings.CurrentValue.MaxEventPerSecondByInstrument)
-                .As<IThrottling>().InstancePerDependency();
-
-            builder.RegisterInstance(new OrderBookProviderClient(_orderBooksCacheProviderClientSettings.CurrentValue.ServiceUrl))
-                .As<IOrderBookProviderClient>()
+            builder.RegisterType<ProvideDataJob>()
+                .AutoActivate()
                 .SingleInstance();
 
             builder.Populate(_services);
-        }
-
-        private static void RegisterRabbitMqHandler<T>(ContainerBuilder container, RabbitMqPublishToExchangeConfiguration exchangeConfiguration, string regKey = "")
-        {
-            container.RegisterType<RabbitMqHandler<T>>()
-                .WithParameter("connectionString", exchangeConfiguration.ConnectionString)
-                .WithParameter("exchangeName", exchangeConfiguration.PublishToExchange)
-                .WithParameter("enabled", exchangeConfiguration.Enabled)
-                .Named<IHandler<T>>(regKey)
-                .As<IHandler<T>>();
         }
     }
 }

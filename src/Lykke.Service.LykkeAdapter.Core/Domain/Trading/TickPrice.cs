@@ -6,9 +6,9 @@ namespace Lykke.Service.LykkeAdapter.Core.Domain.Trading
     public class TickPrice
     {
         [JsonConstructor]
-        public TickPrice(Instrument instrument, DateTime time, decimal ask, decimal bid)
+        public TickPrice(string assetPair, DateTime time, decimal ask, decimal bid)
         {
-            Asset = instrument.Name;
+            Asset = assetPair;
 
             Timestamp = time;
             Ask = ask;
