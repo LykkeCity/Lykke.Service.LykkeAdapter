@@ -1,9 +1,8 @@
 ﻿using Autofac;
 using Autofac.Extensions.DependencyInjection;
+using Common;
 using Common.Log;
-using Lykke.Service.LykkeAdapter.Core.Handlers;
 using Lykke.Service.LykkeAdapter.Core.Services;
-using Lykke.Service.LykkeAdapter.Core.Settings;
 using Lykke.Service.LykkeAdapter.Core.Settings.ServiceSettings;
 using Lykke.Service.LykkeAdapter.RabbitMq;
 using Lykke.Service.LykkeAdapter.Services;
@@ -48,17 +47,15 @@ namespace Lykke.Service.LykkeAdapter.Modules
 
             builder.RegisterType<ShutdownManager>()
                 .As<IShutdownManager>();
-
-            builder.RegisterGeneric(typeof(RabbitMqHandler<>));
-
+            
             builder.RegisterInstance(_settings.CurrentValue);
 
             builder.RegisterType<MeOrderBookSubscriber>()
                 .WithParameter(
                     new TypedParameter(
-                        typeof(RabbitMqConfiguration),
+                        typeof(RabbitMqSourceFeedExchangeConfiguration),
                         _settings.CurrentValue.RabbitMq.SourceFeed))
-                .AutoActivate()
+                .As<IStartable>().As<IStopable>()
                 .SingleInstance();
 
             builder.RegisterType<TickPricePublisher>()
@@ -67,7 +64,7 @@ namespace Lykke.Service.LykkeAdapter.Modules
                         typeof(RabbitMqPublishToExchangeConfiguration),
                         _settings.CurrentValue.RabbitMq.TickPrices))
                 .As<ITickPricePublisher>()
-                .AutoActivate()
+                .As<IStartable>().As<IStopable>()
                 .SingleInstance();
 
             builder.RegisterType<OrderBookPublisher>()
@@ -76,15 +73,21 @@ namespace Lykke.Service.LykkeAdapter.Modules
                         typeof(RabbitMqPublishToExchangeConfiguration),
                         _settings.CurrentValue.RabbitMq.OrderBooks))
                 .As<IOrderBookPublisher>()
-                .AutoActivate()
+                .As<IStartable>().As<IStopable>()
                 .SingleInstance();
 
             builder.RegisterType<OrderBookService>()
+                .As<ILykkeOrderBookHandler>()
                 .As<IOrderBookService>()
+
                 .SingleInstance();
 
             builder.RegisterType<ProvideDataJob>()
-                .AutoActivate()
+                .WithParameter(
+                    new TypedParameter(
+                        typeof(int),
+                        _settings.CurrentValue.MaxEventPerSecondByInstrument))
+                .As<IStartable>().As<IStopable>()
                 .SingleInstance();
 
             builder.Populate(_services);

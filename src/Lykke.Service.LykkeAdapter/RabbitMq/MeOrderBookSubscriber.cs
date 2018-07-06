@@ -15,14 +15,15 @@ namespace Lykke.Service.LykkeAdapter.RabbitMq
     {
         private readonly ILykkeOrderBookHandler _lykkeOrderBookHandler;
         private readonly ILog _log;
-        private readonly RabbitMqSubscriber<LykkeOrderBook> _sourceFeedOrderbooksRabbit;
+        private RabbitMqSubscriber<LykkeOrderBook> _sourceFeedOrderbooksRabbit;
+        private readonly RabbitMqSubscriptionSettings _settings;
 
         public MeOrderBookSubscriber(RabbitMqSourceFeedExchangeConfiguration configuration, ILykkeOrderBookHandler lykkeOrderBookHandler, ILog log)
         {
             _lykkeOrderBookHandler = lykkeOrderBookHandler;
             _log = log;
 
-            var settings = new RabbitMqSubscriptionSettings()
+            _settings = new RabbitMqSubscriptionSettings()
             {
                 ConnectionString = configuration.ConnectionString,
                 QueueName = configuration.Queue,
@@ -31,14 +32,7 @@ namespace Lykke.Service.LykkeAdapter.RabbitMq
                 DeadLetterExchangeName = string.Empty
             };
 
-            _sourceFeedOrderbooksRabbit =
-                new RabbitMqSubscriber<LykkeOrderBook>(settings,
-                        new ResilientErrorHandlingStrategy(_log, settings, TimeSpan.FromSeconds(10),
-                            next: new DefaultErrorHandlingStrategy(_log, settings)))
-                    .SetMessageDeserializer(new JsonMessageDeserializer<LykkeOrderBook>())
-                    .SetMessageReadStrategy(new MessageReadWithTemporaryQueueStrategy())
-                    .Subscribe(HandleOrderBook)
-                    .SetLogger(_log);
+            
         }
 
         private async Task HandleOrderBook(LykkeOrderBook arg)
@@ -55,6 +49,15 @@ namespace Lykke.Service.LykkeAdapter.RabbitMq
 
         public void Start()
         {
+            _sourceFeedOrderbooksRabbit =
+                new RabbitMqSubscriber<LykkeOrderBook>(_settings,
+                        new ResilientErrorHandlingStrategy(_log, _settings, TimeSpan.FromSeconds(10),
+                            next: new DefaultErrorHandlingStrategy(_log, _settings)))
+                    .SetMessageDeserializer(new JsonMessageDeserializer<LykkeOrderBook>())
+                    .SetMessageReadStrategy(new MessageReadWithTemporaryQueueStrategy())
+                    .Subscribe(HandleOrderBook)
+                    .SetLogger(_log);
+
             _sourceFeedOrderbooksRabbit.Start();
         }
 

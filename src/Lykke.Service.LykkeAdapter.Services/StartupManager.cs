@@ -1,6 +1,9 @@
-﻿using Common.Log;
+﻿using System.Collections.Generic;
+using Common.Log;
 using Lykke.Service.LykkeAdapter.Core.Services;
 using System.Threading.Tasks;
+using Autofac;
+using Common;
 
 namespace Lykke.Service.LykkeAdapter.Services
 {
@@ -14,16 +17,20 @@ namespace Lykke.Service.LykkeAdapter.Services
     public class StartupManager : IStartupManager
     {
         private readonly ILog _log;
-        
-        public StartupManager(ILog log)
+        private readonly IEnumerable<IStartable> _items;
+
+        public StartupManager(ILog log, IEnumerable<IStartable> items)
         {
             _log = log;
-            
+            _items = items;
         }
 
         public async Task StartAsync()
         {
-            
+            foreach (var item in _items)
+            {
+                item.Start();
+            }
 
             await Task.CompletedTask;
         }

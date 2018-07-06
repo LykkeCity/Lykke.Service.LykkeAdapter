@@ -1,11 +1,12 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Lykke.Service.LykkeAdapter.Core.Domain.OrderBooks;
 using Lykke.Service.LykkeAdapter.Core.Services;
 
 namespace Lykke.Service.LykkeAdapter.Services
 {
-    public class OrderBookService : IOrderBookService
+    public class OrderBookService : IOrderBookService, ILykkeOrderBookHandler
     {
         public const string LykkeName = "lykke";
 
@@ -45,6 +46,12 @@ namespace Lykke.Service.LykkeAdapter.Services
             lock (_gate) data = _data.Values.ToList();
             return data;
 
+        }
+
+        public Task Handle(LykkeOrderBook orderBook)
+        {
+            ApplyLykkeOrderBook(orderBook);
+            return Task.CompletedTask;
         }
     }
 }

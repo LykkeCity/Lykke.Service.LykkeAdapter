@@ -25,8 +25,8 @@ namespace Lykke.Service.LykkeAdapter.Services
         private readonly ITickPricePublisher _tickPricePublisher;
 
         public ProvideDataJob(
-            int countPerSecond, 
-            IOrderBookService orderBookService, 
+            int countPerSecond,
+            IOrderBookService orderBookService,
             IOrderBookPublisher bookPublisher,
             ITickPricePublisher tickPricePublisher,
             ILog log)
@@ -37,8 +37,15 @@ namespace Lykke.Service.LykkeAdapter.Services
             _bookPublisher = bookPublisher;
             _log = log;
 
-            var interval = (int)Math.Round(1000m / countPerSecond, 0);
-            _interval = TimeSpan.FromMilliseconds(interval);
+            if (countPerSecond > 0)
+            {
+                var interval = (int) Math.Round(1000m / countPerSecond, 0);
+                _interval = TimeSpan.FromMilliseconds(interval);
+            }
+            else
+            {
+                _interval = TimeSpan.FromMilliseconds(100);
+            }
 
             _timerTrigger = new Timer(DoTime, null, Timeout.Infinite, Timeout.Infinite);
         }
@@ -57,7 +64,7 @@ namespace Lykke.Service.LykkeAdapter.Services
                     if (orderBook.Bids != null && orderBook.Bids.Any() && orderBook.Asks != null && orderBook.Asks.Any())
                     {
                         var ask = orderBook.Asks.Min(e => e.Price);
-                        var bid = orderBook.Asks.Max(e => e.Price);
+                        var bid = orderBook.Bids.Max(e => e.Price);
                         if (ask > bid)
                         {
                             TrySendData(orderBook);

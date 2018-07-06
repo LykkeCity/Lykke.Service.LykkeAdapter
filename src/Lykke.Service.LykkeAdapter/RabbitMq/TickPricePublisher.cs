@@ -44,7 +44,7 @@ namespace Lykke.Service.LykkeAdapter.RabbitMq
             {
                 ConnectionString = _configuration.ConnectionString,
                 ExchangeName = _configuration.PublishToExchange,
-                IsDurable = false,
+                IsDurable = true,
                 DeadLetterExchangeName = string.Empty
             };
 
