@@ -13,10 +13,11 @@ namespace Lykke.Service.LykkeAdapter.Core.Domain.Trading
             Timestamp = time;
             Ask = ask;
             Bid = bid;
+            Source = Constants.LykkeExchangeName;
         }
 
         [JsonProperty("source")]
-        public readonly string Source = Constants.LykkeExchangeName;
+        public string Source { get; set; }
 
         [JsonProperty("asset")]
         public string Asset { get; }
