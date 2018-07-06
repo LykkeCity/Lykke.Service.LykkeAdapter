@@ -61,6 +61,9 @@ namespace Lykke.Service.LykkeAdapter.Services
                 var data = _orderBookService.GetCurrentOrderBooks();
                 foreach (var orderBook in data)
                 {
+                    if (orderBook.AssetPairId != "PKTGBP")
+                        continue;
+
                     if (orderBook.Bids != null && orderBook.Bids.Any() && orderBook.Asks != null && orderBook.Asks.Any())
                     {
                         var ask = orderBook.Asks.Min(e => e.Price);
@@ -69,6 +72,16 @@ namespace Lykke.Service.LykkeAdapter.Services
                         {
                             TrySendData(orderBook);
                         }
+                        else
+                        {
+                            _lastData.Remove(orderBook.AssetPairId);
+                            _lastTicks.Remove(orderBook.AssetPairId);
+                        }
+                    }
+                    else
+                    {
+                        _lastData.Remove(orderBook.AssetPairId);
+                        _lastTicks.Remove(orderBook.AssetPairId);
                     }
                 }
             }
