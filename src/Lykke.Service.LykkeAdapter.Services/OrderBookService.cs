@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Threading.Tasks;
 using Lykke.Service.LykkeAdapter.Core.Domain.OrderBooks;
+using Lykke.Service.LykkeAdapter.Core.Domain.Trading;
 using Lykke.Service.LykkeAdapter.Core.Services;
 
 namespace Lykke.Service.LykkeAdapter.Services

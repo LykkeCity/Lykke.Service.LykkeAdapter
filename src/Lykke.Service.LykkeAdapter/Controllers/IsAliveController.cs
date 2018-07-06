@@ -24,15 +24,15 @@ namespace Lykke.Service.LykkeAdapter.Controllers
         /// <returns></returns>
         [HttpGet]
         [SwaggerOperation("IsAlive")]
-        [ProducesResponseType(typeof(IsAliveResponse), (int)HttpStatusCode.OK)]
-        [ProducesResponseType(typeof(ErrorResponse), (int)HttpStatusCode.InternalServerError)]
+        [ProducesResponseType(typeof(IsAliveResponse), (int) HttpStatusCode.OK)]
+        [ProducesResponseType(typeof(ErrorResponse), (int) HttpStatusCode.InternalServerError)]
         public IActionResult Get()
         {
             var healthViloationMessage = _healthService.GetHealthViolationMessage();
             if (healthViloationMessage != null)
             {
                 return StatusCode(
-                    (int)HttpStatusCode.InternalServerError,
+                    (int) HttpStatusCode.InternalServerError,
                     ErrorResponse.Create($"Service is unhealthy: {healthViloationMessage}"));
             }
 
@@ -40,7 +40,8 @@ namespace Lykke.Service.LykkeAdapter.Controllers
             return Ok(new IsAliveResponse
             {
                 Name = Microsoft.Extensions.PlatformAbstractions.PlatformServices.Default.Application.ApplicationName,
-                Version = Microsoft.Extensions.PlatformAbstractions.PlatformServices.Default.Application.ApplicationVersion,
+                Version = Microsoft.Extensions.PlatformAbstractions.PlatformServices.Default.Application
+                    .ApplicationVersion,
                 Env = Program.EnvInfo,
 #if DEBUG
                 IsDebug = true,
