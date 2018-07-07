@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Lykke.Service.LykkeAdapter.Core.Domain.OrderBooks;
@@ -13,6 +14,14 @@ namespace Lykke.Service.LykkeAdapter.Services
 
         private readonly object _gate = new object();
         private Dictionary<string, TradingOrderBook> _data = new Dictionary<string, TradingOrderBook>();
+
+        public OrderBookService()
+        {
+            _data["EURUSD"] = new TradingOrderBook(LykkeName, "EURUSD", new List<PriceVolume>(), new List<PriceVolume>(), DateTime.UtcNow);
+            _data["GBPUSD"] = new TradingOrderBook(LykkeName, "GBPUSD", new List<PriceVolume>(), new List<PriceVolume>(), DateTime.UtcNow);
+            _data["USDCHF"] = new TradingOrderBook(LykkeName, "USDCHF", new List<PriceVolume>(), new List<PriceVolume>(), DateTime.UtcNow);
+            _data["USDJPY"] = new TradingOrderBook(LykkeName, "USDJPY", new List<PriceVolume>(), new List<PriceVolume>(), DateTime.UtcNow);
+        }
 
         public void ApplyLykkeOrderBook(LykkeOrderBook orderBook)
         {

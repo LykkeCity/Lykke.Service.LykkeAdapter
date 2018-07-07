@@ -88,7 +88,8 @@ namespace Lykke.Service.LykkeAdapter.Services
             _timerStaticstic.Change(TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
         }
 
-        private Dictionary<string, DateTime> _lastNegativeSpread = new Dictionary<string, DateTime>();
+        private readonly Dictionary<string, DateTime> _lastNegativeSpread = new Dictionary<string, DateTime>();
+        private DateTime _nextForceData = DateTime.UtcNow.AddMinutes(1);
 
         private void DoTime(object state)
         {
@@ -99,6 +100,12 @@ namespace Lykke.Service.LykkeAdapter.Services
             try
             {
                 var data = _orderBookService.GetCurrentOrderBooks();
+                var force = false;
+                if (DateTime.UtcNow >= _nextForceData)
+                {
+                    force = true;
+                    _nextForceData = DateTime.UtcNow.AddMinutes(1);
+                }
                 foreach (var orderBook in data)
                 {
                     //if (orderBook.AssetPairId != "PKTGBP")
@@ -110,7 +117,7 @@ namespace Lykke.Service.LykkeAdapter.Services
                         var bid = orderBook.Bids.Max(e => e.Price);
                         if (ask > bid)
                         {
-                            TrySendData(orderBook);
+                            TrySendData(orderBook, force);
                         }
                         else
                         {
@@ -147,11 +154,11 @@ namespace Lykke.Service.LykkeAdapter.Services
                 _timerTrigger.Change(_interval, Timeout.InfiniteTimeSpan);
         }
 
-        private void TrySendData(TradingOrderBook orderBook)
+        private void TrySendData(TradingOrderBook orderBook, bool force)
         {
             var snapshot = new OrderBookSnapshot(orderBook);
 
-            if (_lastData.TryGetValue(orderBook.AssetPairId, out var last))
+            if (!force && _lastData.TryGetValue(orderBook.AssetPairId, out var last))
             {
                 if (last.Equals(snapshot))
                 {
@@ -164,7 +171,7 @@ namespace Lykke.Service.LykkeAdapter.Services
             _bookPublisher.Publish(orderBook).GetAwaiter().GetResult();
             _countSendOrderBook++;
 
-            if (_lastTicks.TryGetValue(orderBook.AssetPairId, out var lastTick))
+            if (!force && _lastTicks.TryGetValue(orderBook.AssetPairId, out var lastTick))
             {
                 if (lastTick.Ask == snapshot.Ask && lastTick.Bid == snapshot.Bid)
                     return;
