@@ -61,8 +61,8 @@ namespace Lykke.Service.LykkeAdapter.Services
                 var data = _orderBookService.GetCurrentOrderBooks();
                 foreach (var orderBook in data)
                 {
-                    if (orderBook.AssetPairId != "PKTGBP")
-                        continue;
+                    //if (orderBook.AssetPairId != "PKTGBP")
+                    //    continue;
 
                     if (orderBook.Bids != null && orderBook.Bids.Any() && orderBook.Asks != null && orderBook.Asks.Any())
                     {
