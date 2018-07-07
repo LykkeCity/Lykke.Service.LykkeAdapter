@@ -43,7 +43,7 @@ namespace Lykke.Service.LykkeAdapter.RabbitMq
             }
             catch (Exception ex)
             {
-                await _log.WriteErrorAsync(nameof(MeOrderBookSubscriber), nameof(HandleOrderBook), new {LykkeOrderBook=arg}.ToJson(), ex);
+                await _log.WriteErrorAsync(nameof(MeOrderBookSubscriber), nameof(HandleOrderBook),$"orderBook: {arg.ToJson()}", ex);
             }
         }
 

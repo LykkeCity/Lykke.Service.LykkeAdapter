@@ -34,7 +34,7 @@ namespace Lykke.Service.LykkeAdapter.RabbitMq
             }
             catch (Exception e)
             {
-                await _log.WriteErrorAsync(nameof(OrderBookPublisher), nameof(Publish), new { TradingTickPrice = tickPrice }.ToJson(), e);
+                await _log.WriteErrorAsync(nameof(OrderBookPublisher), nameof(Publish), $"tickPrice: {tickPrice.ToJson()}", e);
             }
         }
 
@@ -53,7 +53,6 @@ namespace Lykke.Service.LykkeAdapter.RabbitMq
                 .SetSerializer(new GenericRabbitModelConverter<TickPrice>())
                 .SetLogger(_log)
                 .SetPublishStrategy(new DefaultFanoutPublishStrategy(publisherSettings))
-                .PublishSynchronously()
                 .Start();
         }
 
