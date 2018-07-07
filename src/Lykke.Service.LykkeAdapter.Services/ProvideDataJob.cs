@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Linq;
 using System.Threading;
 using Autofac;
@@ -18,11 +19,15 @@ namespace Lykke.Service.LykkeAdapter.Services
         private readonly IOrderBookPublisher _bookPublisher;
         private readonly ILog _log;
         private readonly Timer _timerTrigger;
+        private readonly Timer _timerStaticstic;
         private readonly TimeSpan _interval;
         private bool _isstarted;
         private readonly Dictionary<string, OrderBookSnapshot> _lastData = new Dictionary<string, OrderBookSnapshot>();
         private readonly Dictionary<string, TickPrice> _lastTicks = new Dictionary<string, TickPrice>();
         private readonly ITickPricePublisher _tickPricePublisher;
+
+        private int _countSendOrderBook = 0;
+        private int _countSendTickPrice = 0;
 
         public ProvideDataJob(
             int countPerSecond,
@@ -48,7 +53,17 @@ namespace Lykke.Service.LykkeAdapter.Services
             }
 
             _timerTrigger = new Timer(DoTime, null, Timeout.Infinite, Timeout.Infinite);
+            _timerStaticstic = new Timer(WriteStatistic, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
         }
+
+        private void WriteStatistic(object state)
+        {
+            _log.WriteInfoAsync(nameof(ProvideDataJob), nameof(WriteStatistic), $"Lykke Adapter. Sended orderBooks: {_countSendOrderBook}; Sended tickPrice: {_countSendTickPrice}");
+            _countSendOrderBook = 0;
+            _countSendTickPrice = 0;
+        }
+
+        private Dictionary<string, DateTime> _lastNegativeSpread = new Dictionary<string, DateTime>();
 
         private void DoTime(object state)
         {
@@ -76,6 +91,19 @@ namespace Lykke.Service.LykkeAdapter.Services
                         {
                             _lastData.Remove(orderBook.AssetPairId);
                             _lastTicks.Remove(orderBook.AssetPairId);
+                            if (_lastNegativeSpread.TryGetValue(orderBook.AssetPairId, out var lastTime))
+                            {
+                                if ((DateTime.UtcNow - lastTime).TotalSeconds >= 60)
+                                {
+                                    _log.WriteInfoAsync(nameof(ProvideDataJob), nameof(DoTime), $"orderBook: {orderBook.ToJson()}", "Negative spread detected").GetAwaiter().GetResult();
+                                    _lastNegativeSpread[orderBook.AssetPairId] = DateTime.UtcNow;
+                                }
+                            }
+                            else
+                            {
+                                _log.WriteInfoAsync(nameof(ProvideDataJob), nameof(DoTime), $"orderBook: {orderBook.ToJson()}", "Negative spread detected").GetAwaiter().GetResult();
+                                _lastNegativeSpread[orderBook.AssetPairId] = DateTime.UtcNow;
+                            }
                         }
                     }
                     else
@@ -109,6 +137,7 @@ namespace Lykke.Service.LykkeAdapter.Services
 
             _lastData[snapshot.Name] = snapshot;
             _bookPublisher.Publish(orderBook).GetAwaiter().GetResult();
+            _countSendOrderBook++;
 
             if (_lastTicks.TryGetValue(orderBook.AssetPairId, out var lastTick))
             {
@@ -118,6 +147,7 @@ namespace Lykke.Service.LykkeAdapter.Services
 
             var tick = new TickPrice(snapshot.Name, orderBook.Timestamp, snapshot.Ask, snapshot.Bid);
             _tickPricePublisher.Publish(tick).GetAwaiter().GetResult();
+            _countSendTickPrice++;
             _lastTicks[tick.Asset] = tick;
         }
 
