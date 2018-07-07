@@ -2,6 +2,7 @@
 using Autofac.Extensions.DependencyInjection;
 using Common;
 using Common.Log;
+using Lykke.Job.OrderBooksCacheProvider.Client;
 using Lykke.Service.LykkeAdapter.Core.Services;
 using Lykke.Service.LykkeAdapter.Core.Settings.ServiceSettings;
 using Lykke.Service.LykkeAdapter.RabbitMq;
@@ -88,6 +89,10 @@ namespace Lykke.Service.LykkeAdapter.Modules
                         typeof(int),
                         _settings.CurrentValue.MaxEventPerSecondByInstrument))
                 .As<IStartable>().As<IStopable>()
+                .SingleInstance();
+
+            builder.RegisterInstance(new OrderBookProviderClient(_orderBooksCacheProviderClientSettings.CurrentValue.ServiceUrl))
+                .As<IOrderBookProviderClient>()
                 .SingleInstance();
 
             builder.Populate(_services);

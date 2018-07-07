@@ -6,6 +6,7 @@ using System.Threading;
 using Autofac;
 using Common;
 using Common.Log;
+using Lykke.Job.OrderBooksCacheProvider.Client;
 using Lykke.Service.LykkeAdapter.Core.Domain.OrderBooks;
 using Lykke.Service.LykkeAdapter.Core.Domain.Trading;
 using Lykke.Service.LykkeAdapter.Core.Services;
@@ -25,6 +26,7 @@ namespace Lykke.Service.LykkeAdapter.Services
         private readonly Dictionary<string, OrderBookSnapshot> _lastData = new Dictionary<string, OrderBookSnapshot>();
         private readonly Dictionary<string, TickPrice> _lastTicks = new Dictionary<string, TickPrice>();
         private readonly ITickPricePublisher _tickPricePublisher;
+        private readonly IOrderBookProviderClient _orderBookProviderClient;
 
         private int _countSendOrderBook = 0;
         private int _countSendTickPrice = 0;
@@ -34,9 +36,11 @@ namespace Lykke.Service.LykkeAdapter.Services
             IOrderBookService orderBookService,
             IOrderBookPublisher bookPublisher,
             ITickPricePublisher tickPricePublisher,
+            IOrderBookProviderClient orderBookProviderClient,
             ILog log)
         {
             _tickPricePublisher = tickPricePublisher;
+            _orderBookProviderClient = orderBookProviderClient;
             _countPerSecond = countPerSecond;
             _orderBookService = orderBookService;
             _bookPublisher = bookPublisher;
@@ -58,9 +62,30 @@ namespace Lykke.Service.LykkeAdapter.Services
 
         private void WriteStatistic(object state)
         {
+            _timerStaticstic.Change(Timeout.Infinite, Timeout.Infinite);
+
             _log.WriteInfoAsync(nameof(ProvideDataJob), nameof(WriteStatistic), $"Lykke Adapter. Sended orderBooks: {_countSendOrderBook}; Sended tickPrice: {_countSendTickPrice}");
             _countSendOrderBook = 0;
             _countSendTickPrice = 0;
+
+            var data = _orderBookService.GetCurrentOrderBooks();
+            foreach (var orderBook in data.Where(e => !e.Asks.Any() || !e.Bids.Any()))
+            {
+                var raws = _orderBookProviderClient.GetOrderBookRawAsync(orderBook.AssetPairId).GetAwaiter().GetResult();
+                foreach (var raw in raws)
+                {
+                    var item = new LykkeOrderBook()
+                    {
+                        Timestamp = raw.Timestamp,
+                        AssetPair = raw.AssetPair,
+                        IsBuy = raw.IsBuy,
+                        Prices = raw.Prices.Select(e => new PriceVolume((decimal)e.Price, (decimal)e.Volume)).ToList()
+                    };
+                    _orderBookService.ApplyLykkeOrderBook(item);
+                }
+            }
+
+            _timerStaticstic.Change(TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
         }
 
         private Dictionary<string, DateTime> _lastNegativeSpread = new Dictionary<string, DateTime>();
@@ -160,12 +185,14 @@ namespace Lykke.Service.LykkeAdapter.Services
         public void Dispose()
         {
             _timerTrigger?.Dispose();
+            _timerStaticstic?.Dispose();
         }
 
         public void Stop()
         {
             _isstarted = false;
             _timerTrigger?.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            _timerStaticstic?.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         }
 
         public class OrderBookSnapshot
@@ -201,6 +228,11 @@ namespace Lykke.Service.LykkeAdapter.Services
             public decimal SumBuyOppossiteVolume { get; }
             public decimal Ask { get; set; }
             public decimal Bid { get; set; }
+
+            public override string ToString()
+            {
+                return $"{Name} {SumSellVolume} {SumSellOppossiteVolume} {SumBuyVolume} {SumBuyOppossiteVolume} {Ask} {Bid}";
+            }
 
             protected bool Equals(OrderBookSnapshot other)
             {
