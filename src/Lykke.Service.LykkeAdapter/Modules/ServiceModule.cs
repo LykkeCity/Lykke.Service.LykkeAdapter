@@ -69,10 +69,8 @@ namespace Lykke.Service.LykkeAdapter.Modules
                 .SingleInstance();
 
             builder.RegisterType<OrderBookPublisher>()
-                .WithParameter(
-                    new TypedParameter(
-                        typeof(RabbitMqPublishToExchangeConfiguration),
-                        _settings.CurrentValue.RabbitMq.OrderBooks))
+                .WithParameter("configuration", _settings.CurrentValue.RabbitMq.OrderBooks)
+                .WithParameter("thinnedConfiguration", _settings.CurrentValue.RabbitMq.ThinnedOrderBooks)
                 .As<IOrderBookPublisher>()
                 .As<IStartable>().As<IStopable>()
                 .SingleInstance();

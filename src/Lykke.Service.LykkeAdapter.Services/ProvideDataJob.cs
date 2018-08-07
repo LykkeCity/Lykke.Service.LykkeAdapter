@@ -118,6 +118,10 @@ namespace Lykke.Service.LykkeAdapter.Services
                         if (ask > bid)
                         {
                             TrySendData(orderBook, force);
+                            if (force)
+                            {
+                                TrySendDataThinned(orderBook);
+                            }
                         }
                         else
                         {
@@ -181,6 +185,11 @@ namespace Lykke.Service.LykkeAdapter.Services
             _tickPricePublisher.Publish(tick).GetAwaiter().GetResult();
             _countSendTickPrice++;
             _lastTicks[tick.Asset] = tick;
+        }
+
+        private void TrySendDataThinned(TradingOrderBook orderBook)
+        {
+            _bookPublisher.PublishThinned(orderBook).GetAwaiter().GetResult();
         }
 
         public void Start()
