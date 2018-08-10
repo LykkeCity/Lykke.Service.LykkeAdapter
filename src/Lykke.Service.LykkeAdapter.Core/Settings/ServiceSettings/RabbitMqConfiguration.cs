@@ -7,5 +7,7 @@
         //order must be the same as in json settings 
         public RabbitMqPublishToExchangeConfiguration TickPrices { get; set; }
         public RabbitMqPublishToExchangeConfiguration OrderBooks { get; set; }
+
+        public RabbitMqPublishToExchangeConfiguration ThinnedOrderBooks { get; set; }
     }
 }
