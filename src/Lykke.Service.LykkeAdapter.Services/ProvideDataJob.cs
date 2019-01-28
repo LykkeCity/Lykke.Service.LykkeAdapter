@@ -159,9 +159,6 @@ namespace Lykke.Service.LykkeAdapter.Services
 
         private void TrySendData(TradingOrderBook orderBook, bool force)
         {
-            if (orderBook.AssetPairId.Contains("EOS"))
-                Console.WriteLine(orderBook.AssetPairId);
-
             var snapshot = new OrderBookSnapshot(orderBook);
 
             if (!force && _lastData.TryGetValue(orderBook.AssetPairId, out var last))
